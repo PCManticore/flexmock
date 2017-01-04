@@ -44,8 +44,8 @@ class NewStyleClass(object):
 def assertRaises(exception, method, *kargs, **kwargs):
     try:
         method(*kargs, **kwargs)
-    except exception:
-        return
+    except exception  as exc:
+        return exc
     except:
         instance = sys.exc_info()[1]
         print('%s' % instance)
@@ -1256,6 +1256,25 @@ class RegularClass(object):
         flexmock(Foo).new_instances('foo', 'bar')
         assertEqual('foo', Foo())
         assertEqual('bar', Foo())
+
+    def test_flexmock_should_show_expected_call_signature(self):
+        class Foo(object):
+            def bar(self, arg):
+                pass
+
+        foo = Foo()
+        flexmock(foo).should_receive('bar').with_args(
+            arg=('call', 'signature')
+        )
+
+        exc = assertRaises(MethodSignatureError, foo.bar, 1)
+
+        msg = ('%r expects the following %r call signature, '
+               'but received instead \'1\'')
+        call_signature = (
+            msg % ('bar', "arg=('call', 'signature')")
+        )
+        assertEqual(str(exc), call_signature)
 
     def test_should_receive_should_not_replace_flexmock_methods(self):
         class Foo:

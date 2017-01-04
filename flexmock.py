@@ -974,9 +974,25 @@ class Mock(object):
                 # make sure to clean up expectations to ensure none of them
                 # interfere with the runner's error reporing mechanism
                 # e.g. open()
+                current_args = []
                 for _, expectations in FlexmockContainer.flexmock_objects.items():
                     for expectation in expectations:
+                        if expectation.args:
+                            current_args.append(expectation.args)
                         _getattr(expectation, 'reset')()
+
+                if len(current_args) == 1:
+                    # Only one expectation with arguments
+                    expected_to_be_called_with = _format_call_signature(
+                        current_args[0]
+                    )
+                    actual_call = _format_call_signature(arguments)
+                    msg = ('%r expects the following %r call signature, '
+                           'but received instead %r')
+                    raise MethodSignatureError(
+                        msg % (name, expected_to_be_called_with, actual_call)
+                    )
+
                 raise MethodSignatureError(_format_args(name, arguments))
 
         return mock_method
@@ -1000,7 +1016,7 @@ def _arg_to_str(arg):
             return '%s' % (arg,)
 
 
-def _format_args(name, arguments):
+def _format_call_signature(arguments):
     if arguments is None:
         arguments = {'kargs': (), 'kwargs': {}}
     kargs = ', '.join(_arg_to_str(arg) for arg in arguments['kargs'])
@@ -1009,7 +1025,12 @@ def _format_args(name, arguments):
         args = '%s, %s' % (kargs, kwargs)
     else:
         args = '%s%s' % (kargs, kwargs)
-    return '%s(%s)' % (name, args)
+    return args
+
+
+def _format_args(name, arguments):
+    call_signature = _format_call_signature(arguments)
+    return '%s(%s)' % (name, call_signature)
 
 
 def _create_partial_mock(obj_or_class, **kwargs):
